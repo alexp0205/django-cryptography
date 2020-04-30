@@ -110,6 +110,10 @@ class FernetBytes:
         self._encryption_key = key or settings.CRYPTOGRAPHY_KEY
         self._signer = signer
 
+    @classmethod
+    def generate_key(cls):
+        return base64.urlsafe_b64encode(os.urandom(10))
+
     def encrypt(self, data):
         """
         :type data: any

@@ -7,7 +7,7 @@ from django.utils.encoding import force_bytes
 from django.utils.translation import ugettext_lazy as _
 
 from django_cryptography.core.signing import SignatureExpired
-from django_cryptography.utils.crypto import FernetBytes
+from django_cryptography.utils.thread_local import get_crypter
 
 FIELD_CACHE = {}
 
@@ -100,7 +100,6 @@ class EncryptedMixin:
         self.key = kwargs.pop('key', None)
         self.ttl = kwargs.pop('ttl', None)
 
-        self._fernet = FernetBytes(self.key)
         super(EncryptedMixin, self).__init__(*args, **kwargs)
 
     @property
@@ -108,11 +107,25 @@ class EncryptedMixin:
         return _('Encrypted %s') % super(EncryptedMixin, self).description
 
     def _dump(self, value):
-        return self._fernet.encrypt(pickle.dumps(value))
+        pickled_string = pickle.dumps(value)
+        crypter = get_crypter()
+        if crypter:
+            return b"e_" + crypter.encrypt(pickled_string)
+        else:
+            return b"n_" + pickled_string
 
     def _load(self, value):
         try:
-            return pickle.loads(self._fernet.decrypt(value, self.ttl))
+            if value[:2] == b"e_":
+                crypter = get_crypter()
+                if crypter:
+                    return pickle.loads(crypter.decrypt(value[2:], self.ttl))
+                else:
+                    return pickle.loads(value[2:])
+            elif value[:2] == b"n_":
+                return pickle.loads(value[2:])
+            else:
+                raise ValueError
         except SignatureExpired:
             return Expired
 

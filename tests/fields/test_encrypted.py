@@ -13,6 +13,8 @@ from django.test.utils import freeze_time
 from django.utils import timezone
 
 from django_cryptography.fields import Expired, encrypt
+from django_cryptography.utils.crypto import FernetBytes
+from django_cryptography.utils.thread_local import set_encryption_key
 from .models import (
     EncryptedCharModel,
     EncryptedDateTimeModel,
@@ -25,6 +27,10 @@ from .models import (
 
 
 class TestSaveLoad(TestCase):
+
+    def setUp(self) -> None:
+        set_encryption_key(FernetBytes.generate_key())
+
     def test_integer(self):
         instance = EncryptedIntegerModel(field=42)
         instance.save()
